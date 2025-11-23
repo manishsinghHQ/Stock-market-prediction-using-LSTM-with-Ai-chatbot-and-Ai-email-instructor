@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Sign Up - StockAI{% endblock %}
+
+{% block content %}
+<style>
+  body {
+    background: linear-gradient(135deg, #6c63ff, #00c6ff);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  .signup-card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    padding: 40px;
+    width: 100%;
+    max-width: 1400px;
+    transition: transform 0.3s ease;
+  }
+
+  .signup-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .signup-title {
+    font-weight: 700;
+    color: #333;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .form-control {
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 15px;
+  }
+
+  .btn-signup {
+    width: 100%;
+    padding: 12px;
+    font-weight: 600;
+    background: linear-gradient(90deg, #6c63ff, #00c6ff);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    transition: all 0.3s ease;
+  }
+
+  .btn-signup:hover {
+    background: linear-gradient(90deg, #00c6ff, #6c63ff);
+    transform: scale(1.03);
+  }
+
+  .login-text {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 14px;
+  }
+
+  .login-text a {
+    color: #6c63ff;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .login-text a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<div class="signup-card">
+  <h3 class="signup-title">Create Your StockAI Account</h3>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn-signup mt-2">Sign Up</button>
+  </form>
+
+  <p class="login-text mt-3">
+    Already have an account? <a href="{% url 'accounts:login' %}">Log in</a>
+  </p>
+</div>
+{% endblock %}

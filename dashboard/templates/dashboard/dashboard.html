@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - StockAI{% endblock %}
+{% block content %}
+<style>
+  body{
+    background-color:#00c6ff ;
+  }
+</style>
+
+<div class="row">
+  <!-- Main Stock Section -->
+  <div class="col-lg-8">
+    <div class="card mb-3 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex gap-2 mb-3">
+          <input id="tickerInput" class="form-control" value="{{ pref.default_ticker }}" placeholder="Ticker (AAPL)" />
+          <button class="btn btn-primary" id="loadBtn">Load</button>
+          <button class="btn btn-outline-secondary" id="predictBtn">Predict</button>
+        </div>
+        <div id="chart" style="height:420px;"></div>
+        <div id="prediction" class="mt-2 text-muted fw-medium"></div>
+        <div id="profitLoss" class="mt-2 fw-bold"></div>
+        <div id="predictionChart" style="height:420px; margin-top:20px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar Section -->
+  <div class="col-lg-4">
+    <!-- Watchlist -->
+    <div class="card mb-3 shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-3">📌 Watchlist</h5>
+        <form method="post" action="{% url 'dashboard:add_watchlist' %}">
+          {% csrf_token %}
+          <div class="input-group mb-2">
+            <input name="ticker" class="form-control" placeholder="Add ticker" />
+            <button class="btn btn-outline-primary">Add</button>
+          </div>
+        </form>
+        <ul class="list-group">
+          {% for item in watchlist %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>{{ item.ticker }}</span>
+              <div class="btn-group">
+                <button class="btn btn-sm btn-secondary" onclick="setTicker('{{ item.ticker }}')">Open</button>
+                <form method="post" action="{% url 'dashboard:remove_watchlist' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="ticker" value="{{ item.ticker }}" />
+                  <button class="btn btn-sm btn-danger">Remove</button>
+                </form>
+              </div>
+            </li>
+          {% empty %}
+            <li class="list-group-item">No tickers yet.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Chatbot -->
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-3">🤖 AI Chatbot</h5>
+        <div id="chatbox" style="height:240px; overflow:auto; background:#f8f9fa; padding:.5rem; border-radius:.5rem; font-size:0.9rem;"></div>
+        <div class="input-group mt-2">
+          <input id="chatInput" class="form-control" placeholder="Ask about a stock..." />
+          <button class="btn btn-primary" id="sendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="email-section mt-4 text-center">
+  <p>Want a detailed AI explanation of your prediction in your email?</p>
+  <input type="email" id="userEmail" placeholder="Enter your email" class="form-control w-50 mx-auto mb-2">
+  <button class="btn btn-primary" onclick="sendEmail()">Send to Email</button>
+  <p id="emailStatus" class="mt-2"></p>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+  // Global variables to store the last prediction
+let lastPredictionHistory = [];
+let lastPredictedValue = null;
+let lastTicker = "";
+async function loadChart() {
+  const t = document.getElementById('tickerInput').value.trim().toUpperCase();
+  if (!t) return alert('Enter ticker');
+  try {
+    const res = await fetch(`/api/stock/${t}/history/?period=6mo&interval=1d`);
+    const data = await res.json();
+    console.log("Stock history response:", data);  // 👈 Debug log
+
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+    if (!data.dates || !data.close || data.dates.length === 0) {
+      alert("No chart data available.");
+      return;
+    }
+
+    const trace = {
+      x: data.dates,
+      y: data.close,
+      type: 'scatter',
+      mode: 'lines',
+      name: t
+    };
+
+    Plotly.react('chart', [trace], {
+      title: `${t} Close Price`,
+      margin: { t: 40 },
+      xaxis: { title: "Date" },
+      yaxis: { title: "Price (USD)" }
+    });
+  } catch (err) {
+    console.error(err);
+    alert("Error loading chart. Check console for details.");
+  }
+}
+
+
+async function predict() {
+  const t = document.getElementById('tickerInput').value.trim().toUpperCase();
+  if (!t) return alert('Enter ticker');
+  lastTicker = t;
+
+  try {
+    // 🔹 First, refresh main chart with this ticker
+    await loadChart();
+
+    // Now fetch prediction
+    const res = await fetch(`/api/predict/${t}/`);
+    const data = await res.json();
+
+    const el = document.getElementById('prediction');
+    const plEl = document.getElementById('profitLoss');
+
+    if (data.error) {
+      el.innerText = data.error;
+      plEl.innerText = "";
+      return;
+    }
+
+    const predicted = parseFloat(data.prediction);
+     lastPredictedValue = predicted;              // Store predicted value
+     lastPredictionHistory = data.history.close;  // Store history
+
+    el.innerText = `Predicted next price for ${t}: $${predicted.toFixed(2)}`;
+
+    // last price from history
+    const histClose = data.history.close;
+    const histDates = data.history.dates;
+    const lastPrice = histClose[histClose.length - 1];
+
+    // profit / loss calculation
+    const diff = predicted - lastPrice;
+    const percent = ((diff / lastPrice) * 100).toFixed(2);
+
+    if (diff > 0) {
+      plEl.innerHTML = `<span style="color:green;">📈 Profit: +${diff.toFixed(2)} USD (+${percent}%)</span>`;
+    } else if (diff < 0) {
+      plEl.innerHTML = `<span style="color:red;">📉 Loss: ${diff.toFixed(2)} USD (${percent}%)</span>`;
+    } else {
+      plEl.innerHTML = `<span style="color:gray;">No change predicted</span>`;
+    }
+
+    // plot history + prediction
+    const trace1 = { 
+      x: histDates, 
+      y: histClose, 
+      type: 'scatter', 
+      mode: 'lines', 
+      name: `${t} History` 
+    };
+
+    const trace2 = {
+      x: [histDates[histDates.length - 1], "Predicted"],
+      y: [lastPrice, predicted],
+      type: 'scatter',
+      mode: 'lines+markers+text',
+      name: "Prediction",
+      text: ["", `$${predicted.toFixed(2)}`],
+      textposition: "top center",
+      line: { dash: 'dot', color: diff >= 0 ? 'green' : 'red' },
+      marker: { size: 10, color: diff >= 0 ? 'green' : 'red' }
+    };
+
+    Plotly.newPlot('predictionChart', [trace1, trace2], {
+      title: `${t} Stock Price Prediction`,
+      xaxis: { title: "Date" },
+      yaxis: { title: "Price (USD)" },
+      margin: { t: 40 }
+    });
+
+  } catch (err) {
+    alert("Prediction failed.");
+    console.error(err);
+  }
+}
+
+
+async function sendMessage() {
+  const msg = document.getElementById('chatInput').value.trim();
+  if (!msg) return;
+  const box = document.getElementById('chatbox');
+  box.innerHTML += `<div class="text-end"><span class="badge bg-primary">You</span> ${msg}</div>`;
+  document.getElementById('chatInput').value = '';
+
+  const csrf = getCookie('csrftoken');
+  try {
+    const res = await fetch('/api/chatbot/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      body: JSON.stringify({ message: msg })
+    });
+    const data = await res.json();
+    box.innerHTML += `<div><span class="badge bg-secondary">AI</span> ${data.reply}</div>`;
+    box.scrollTop = box.scrollHeight;
+  } catch (err) {
+    box.innerHTML += `<div><span class="badge bg-danger">Error</span> Failed to get AI response</div>`;
+  }
+}
+
+function sendEmail() {
+  const emailBtn = document.querySelector(".email-section button"); // the Send to Email button
+  const emailStatus = document.getElementById("emailStatus");
+  const email = document.getElementById("userEmail").value.trim();
+
+  if (!email) {
+    alert("Please enter your email.");
+    return;
+  }
+
+  if (!lastTicker || !lastPredictedValue || !lastPredictionHistory?.length) {
+    alert("Please predict a stock first before sending email.");
+    return;
+  }
+
+  const summaryData = [...lastPredictionHistory.slice(-5), lastPredictedValue].join(", ");
+  const summary = `Ticker: ${lastTicker}\nRecent prices: ${summaryData}`;
+
+  // Show loading indicator
+  emailBtn.disabled = true;
+  const originalText = emailBtn.innerText;
+  emailBtn.innerText = "Sending...";
+
+  fetch("{% url 'dashboard:send_graph_email' %}", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": getCookie('csrftoken')
+    },
+    body: JSON.stringify({
+      email: email,
+      ticker: lastTicker,
+      summary: summary,
+      predicted_data: [...lastPredictionHistory.slice(-5), lastPredictedValue]
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    emailStatus.innerText = data.message || data.error;
+  })
+  .catch(err => {
+    emailStatus.innerText = "Error sending email.";
+    console.error(err);
+  })
+  .finally(() => {
+    // Reset button after request completes
+    emailBtn.disabled = false;
+    emailBtn.innerText = originalText;
+  });
+}
+
+
+// Utility function to get CSRF token
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(';');
+    for (let c of cookies) {
+      c = c.trim();
+      if (c.startsWith(name + '=')) {
+        cookieValue = decodeURIComponent(c.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+window.addEventListener('load', () => { 
+    const inputTicker = document.getElementById('tickerInput').value.trim().toUpperCase();
+    if (inputTicker) lastTicker = inputTicker;
+    loadChart(); 
+    document.getElementById('predictBtn').addEventListener('click', predict);
+    document.getElementById('sendBtn').addEventListener('click', sendMessage); 
+    const chatInput = document.getElementById('chatInput');
+    chatInput.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // prevent newline in input
+            sendMessage();
+        }
+    });
+
+     
+  });
+
+
+function setTicker(ticker) {
+    const input = document.getElementById('tickerInput');
+    input.value = ticker;  // Set ticker in main input
+    predict();        // Load chart for this ticker
+}
+
+</script>
+{% endblock %}

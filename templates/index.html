@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- Embedded CSS -->
+<style>
+  body {
+    background-color: #00c6ff;
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  .hero-section {
+    background: linear-gradient(to right, #4f46e5, #3b82f6);
+    color: white;
+    padding: 6rem 1.5rem;
+    text-align: center;
+  }
+
+  .hero-section h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-section p {
+    font-size: 1.25rem;
+    max-width: 700px;
+    margin: 0 auto 2rem;
+    color: #d1d5db;
+  }
+
+  .hero-section a {
+    background-color: white;
+    color: #4f46e5;
+    padding: 0.75rem 2rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: background-color 0.3s ease;
+  }
+
+  .hero-section a:hover {
+    background-color: #e5e7eb;
+  }
+
+  .features-section {
+    padding: 6rem 1.5rem;
+    background-color: #f9fafb;
+    text-align: center;
+  }
+
+  .features-section h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+  }
+
+  .features-section p {
+    font-size: 1.125rem;
+    max-width: 800px;
+    margin: 0 auto 3rem;
+    color: #4b5563;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  @media (min-width: 768px) {
+    .features-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .feature-card {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    transition: box-shadow 0.3s ease;
+  }
+
+  .feature-card:hover {
+    box-shadow: 0 8px 12px rgba(0,0,0,0.1);
+  }
+
+  .feature-card .icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+
+  .feature-card h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  .feature-card p {
+    color: #6b7280;
+    line-height: 1.6;
+  }
+</style>
+
+<!-- Hero Section -->
+<section class="hero-section">
+  <div class="container mx-auto px-6 md:px-12 lg:px-20">
+    <h1>🚀 StockAI – Smarter Stock Market Predictions</h1>
+    <p>
+      Leverage powerful AI algorithms to analyze stock trends, predict future prices, and make informed investment decisions effortlessly.
+    </p>
+    <a href="{% url 'accounts:signup' %}">
+      Get Started for Free
+    </a>
+  </div>
+</section>
+
+<!-- Why Choose StockAI -->
+<section class="features-section">
+  <div class="container mx-auto px-6 md:px-12 lg:px-20">
+    <h2>Why Choose StockAI?</h2>
+    <p>
+      StockAI is your ultimate stock market companion. By combining <span class="font-semibold">deep learning (LSTM models)</span>, real-time market data, and intelligent analytics, we empower both beginners and experienced traders to stay ahead of market movements and make smarter financial decisions.
+    </p>
+
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <div class="icon">📈</div>
+        <h3>AI-Powered Predictions</h3>
+        <p>
+          Accurate stock price forecasts using advanced machine learning models trained on large datasets of historical data.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="icon">💬</div>
+        <h3>Smart Interactive Chatbot</h3>
+        <p>
+          Ask your questions anytime — get instant insights about stocks, market trends, or platform usage with our intelligent AI chatbot.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="icon">📊</div>
+        <h3>Interactive Dashboard</h3>
+        <p>
+          Visualize market trends, manage watchlists, customize your experience, and make sense of data with our intuitive dashboard interface.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{% endblock %}

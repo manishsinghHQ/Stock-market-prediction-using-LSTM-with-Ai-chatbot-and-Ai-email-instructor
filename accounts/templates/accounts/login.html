@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Login - StockAI{% endblock %}
+{% block content %}
+<style>
+  body{
+    background-color: #00c6ff;
+  }
+</style>
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h4 class="mb-3">Login</h4>
+        {% if message %}<div class="alert alert-danger">{{ message }}</div>{% endif %}
+        <form method="post">{% csrf_token %}
+          <div class="mb-2">{{ form.username.label_tag }}{{ form.username }}</div>
+          <div class="mb-2">{{ form.password.label_tag }}{{ form.password }}</div>
+          <div class="form-check mb-3">
+            {{ form.remember_me }} <label class="form-check-label">Remember me</label>
+          </div>
+          <button class="btn btn-primary w-100">Login</button>
+        </form>
+        <hr>
+        <div class="text-center">
+          <a href="{% url 'accounts:signup' %}">Create an account</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
