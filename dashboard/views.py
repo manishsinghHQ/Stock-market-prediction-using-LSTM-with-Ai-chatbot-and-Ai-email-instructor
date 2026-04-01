@@ -80,7 +80,7 @@ def send_graph_email(request):
             }
 
             payload = {
-                "model": "nvidia/nemotron-nano-12b-v2-vl:free",
+                "model": "arcee-ai/trinity-large-preview:free",
                 "messages": [
                     {"role": "system", "content": "You are a financial analyst who explains trends in simple language."},
                     {"role": "user", "content": f"Explain the predicted stock trend for {ticker}.\nSummary:\n{summary}"},

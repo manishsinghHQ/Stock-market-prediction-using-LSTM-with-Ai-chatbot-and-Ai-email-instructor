@@ -10,3 +10,10 @@ urlpatterns = [
     path("api/", include(("core.api_urls", "core"), namespace="core_api")),
      # default home -> dashboard
 ]
+
+
+
+
+
+
+

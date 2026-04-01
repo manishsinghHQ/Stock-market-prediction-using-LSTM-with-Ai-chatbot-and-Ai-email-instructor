@@ -67,7 +67,7 @@ def stock_history(request, ticker):
 
 @login_required
 def predict_price(request, ticker):
-    """Predict next-day price using LSTM model + return historical data"""
+    """Predict next-day price using LSTM model + return historical data + accuracy"""
     ticker = ticker.upper()[:16]
     try:
         df = yf.download(tickers=ticker, period="6mo", interval="1d", progress=False)
@@ -85,34 +85,69 @@ def predict_price(request, ticker):
         if len(scaled_data) < lookback:
             return JsonResponse({"error": "Not enough data"}, status=400)
 
-        last_sequence = scaled_data[-lookback:]
-        X_test = np.array([last_sequence]).reshape(1, lookback, 1)
+        # Prepare sequences for evaluation (optional, using last 20% for test)
+        split = int(0.8 * len(scaled_data))
+        X_eval, y_eval = [], []
+        for i in range(lookback, len(scaled_data)):
+            X_eval.append(scaled_data[i-lookback:i])
+            y_eval.append(scaled_data[i, 0])
+        X_eval, y_eval = np.array(X_eval), np.array(y_eval)
 
+        # Predict all for evaluation
         if lstm_model:
+            y_pred_scaled = lstm_model.predict(X_eval)
+            y_pred_org = scaler.inverse_transform(
+                np.concatenate((y_pred_scaled, np.zeros((len(y_pred_scaled), data.shape[1]-1))), axis=1)
+            )[:,0]
+
+            y_test_org = scaler.inverse_transform(
+                np.concatenate((y_eval.reshape(-1,1), np.zeros((len(y_eval), data.shape[1]-1))), axis=1)
+            )[:,0]
+
+            # Accuracy metrics
+            rmse = float(np.sqrt(np.mean((y_test_org - y_pred_org)**2)))
+            mape = float(np.mean(np.abs((y_test_org - y_pred_org)/y_test_org)) * 100)
+            accuracy = 100 - mape
+
+            # Predict next-day price
+            last_sequence = scaled_data[-lookback:]
+            X_test = np.array([last_sequence]).reshape(1, lookback, data.shape[1])
             prediction_scaled = lstm_model.predict(X_test)
-            prediction = scaler.inverse_transform(prediction_scaled)[0][0]
+            prediction = scaler.inverse_transform(
+                np.concatenate((prediction_scaled, np.zeros((1, data.shape[1]-1))), axis=1)
+            )[0][0]
         else:
+            # Fallback: last close price
             prediction = float(data[-1])
+            rmse = mape = 0.0
+            accuracy = 0.0
 
         # Prepare historical data safely
         df = df.reset_index()
         history = {
-            "dates": df["Date"].astype(str).squeeze().tolist(),
-            "close": df["Close"].astype(float).squeeze().tolist(),
-            "open": df["Open"].astype(float).squeeze().tolist(),
-            "high": df["High"].astype(float).squeeze().tolist(),
-            "low": df["Low"].astype(float).squeeze().tolist(),
-            "volume": df["Volume"].fillna(0).astype(int).squeeze().tolist(),
+            "dates": df["Date"].astype(str).values.tolist(),
+            "close": df["Close"].astype(float).values.tolist(),
+            "open": df["Open"].astype(float).values.tolist(),
+            "high": df["High"].astype(float).values.tolist(),
+            "low": df["Low"].astype(float).values.tolist(),
+            "volume": df["Volume"].fillna(0).astype(int).values.tolist(),
+
+
+            
         }
 
         return JsonResponse({
             "ticker": ticker,
             "prediction": round(float(prediction), 2),
+            "rmse": round(rmse, 2),
+            "mape": round(mape, 2),
+            "accuracy": round(accuracy, 2),
             "history": history
         })
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
 
 @login_required
 @require_http_methods(["POST"])

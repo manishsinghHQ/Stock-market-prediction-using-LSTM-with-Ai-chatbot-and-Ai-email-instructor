@@ -1,0 +1,41 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.so
+
+# ---- Virtual Environment ----
+venv/
+env/
+
+# ---- Environment Variables ----
+.env
+*.env
+
+# ---- IDE & OS ----
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# ---- Django ----
+db.sqlite3
+media/
+staticfiles/
+
+# ---- Logs ----
+*.log
+
+# ---- ML Models ----
+*.h5
+*.pkl
+*.joblib
+*.pt
+model/
+models/
+
+# ---- Node / Frontend (if used) ----
+node_modules/
+build/
+
+# ---- Cache ----
+*.cache

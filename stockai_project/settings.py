@@ -1,8 +1,6 @@
 from pathlib import Path
 import environ, os, datetime
-from dotenv import load_dotenv
-load_dotenv()
-import os
+
 
 
 
@@ -83,6 +81,8 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 # DeepSeek via OpenRouter
 OPENROUTER_API_KEY=env("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = env("OPENROUTER_MODEL", default="arcee-ai/trinity-large-preview:free")
+
 OPENROUTER_BASE_URL = env("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1/chat/completions")
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

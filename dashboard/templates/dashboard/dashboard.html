@@ -19,6 +19,8 @@
         </div>
         <div id="chart" style="height:420px;"></div>
         <div id="prediction" class="mt-2 text-muted fw-medium"></div>
+        <div id="accuracy" class="mt-2 fw-bold text-info"></div>
+
         <div id="profitLoss" class="mt-2 fw-bold"></div>
         <div id="predictionChart" style="height:420px; margin-top:20px;"></div>
       </div>
@@ -89,119 +91,137 @@ let lastTicker = "";
 async function loadChart() {
   const t = document.getElementById('tickerInput').value.trim().toUpperCase();
   if (!t) return alert('Enter ticker');
+
   try {
     const res = await fetch(`/api/stock/${t}/history/?period=6mo&interval=1d`);
     const data = await res.json();
-    console.log("Stock history response:", data);  // 👈 Debug log
 
-    if (data.error) {
-      alert(data.error);
-      return;
-    }
-    if (!data.dates || !data.close || data.dates.length === 0) {
-      alert("No chart data available.");
-      return;
-    }
+    console.log("History:", data);
 
-    const trace = {
-      x: data.dates,
-      y: data.close,
-      type: 'scatter',
-      mode: 'lines',
-      name: t
-    };
+    if (data.error) return alert(data.error);
+    if (!data.dates || !data.close) return alert("Invalid chart data");
 
-    Plotly.react('chart', [trace], {
+    // Ensure correct arrays
+    const dates = Array.from(data.dates);
+    const close = Array.from(data.close);
+
+    Plotly.react('chart', [{
+        x: dates,
+        y: close,
+        type: 'scatter',
+        mode: 'lines',
+        name: t
+    }], {
       title: `${t} Close Price`,
-      margin: { t: 40 },
-      xaxis: { title: "Date" },
-      yaxis: { title: "Price (USD)" }
-    });
-  } catch (err) {
-    console.error(err);
-    alert("Error loading chart. Check console for details.");
-  }
-}
-
-
-async function predict() {
-  const t = document.getElementById('tickerInput').value.trim().toUpperCase();
-  if (!t) return alert('Enter ticker');
-  lastTicker = t;
-
-  try {
-    // 🔹 First, refresh main chart with this ticker
-    await loadChart();
-
-    // Now fetch prediction
-    const res = await fetch(`/api/predict/${t}/`);
-    const data = await res.json();
-
-    const el = document.getElementById('prediction');
-    const plEl = document.getElementById('profitLoss');
-
-    if (data.error) {
-      el.innerText = data.error;
-      plEl.innerText = "";
-      return;
-    }
-
-    const predicted = parseFloat(data.prediction);
-     lastPredictedValue = predicted;              // Store predicted value
-     lastPredictionHistory = data.history.close;  // Store history
-
-    el.innerText = `Predicted next price for ${t}: $${predicted.toFixed(2)}`;
-
-    // last price from history
-    const histClose = data.history.close;
-    const histDates = data.history.dates;
-    const lastPrice = histClose[histClose.length - 1];
-
-    // profit / loss calculation
-    const diff = predicted - lastPrice;
-    const percent = ((diff / lastPrice) * 100).toFixed(2);
-
-    if (diff > 0) {
-      plEl.innerHTML = `<span style="color:green;">📈 Profit: +${diff.toFixed(2)} USD (+${percent}%)</span>`;
-    } else if (diff < 0) {
-      plEl.innerHTML = `<span style="color:red;">📉 Loss: ${diff.toFixed(2)} USD (${percent}%)</span>`;
-    } else {
-      plEl.innerHTML = `<span style="color:gray;">No change predicted</span>`;
-    }
-
-    // plot history + prediction
-    const trace1 = { 
-      x: histDates, 
-      y: histClose, 
-      type: 'scatter', 
-      mode: 'lines', 
-      name: `${t} History` 
-    };
-
-    const trace2 = {
-      x: [histDates[histDates.length - 1], "Predicted"],
-      y: [lastPrice, predicted],
-      type: 'scatter',
-      mode: 'lines+markers+text',
-      name: "Prediction",
-      text: ["", `$${predicted.toFixed(2)}`],
-      textposition: "top center",
-      line: { dash: 'dot', color: diff >= 0 ? 'green' : 'red' },
-      marker: { size: 10, color: diff >= 0 ? 'green' : 'red' }
-    };
-
-    Plotly.newPlot('predictionChart', [trace1, trace2], {
-      title: `${t} Stock Price Prediction`,
-      xaxis: { title: "Date" },
-      yaxis: { title: "Price (USD)" },
       margin: { t: 40 }
     });
 
   } catch (err) {
-    alert("Prediction failed.");
     console.error(err);
+    alert("Chart load error.");
   }
 }
+
+async function predict() {
+  const t = document.getElementById('tickerInput').value.trim().toUpperCase();
+  if (!t) return alert('Enter ticker');
+
+  lastTicker = t;
+
+  try {
+    await loadChart();
+
+    const res = await fetch(`/api/predict/${t}/`);
+    const data = await res.json();
+
+    console.log("Predict API:", data);
+
+    const el = document.getElementById('prediction');
+    const plEl = document.getElementById('profitLoss');
+    const accuracyEl = document.getElementById('accuracy');
+
+    if (data.error) {
+      el.innerText = data.error;
+      plEl.innerText = "";
+      accuracyEl.innerText = "";
+      return;
+    }
+
+    // ------------ FIXED: Convert all backend values to correct types ---------------
+    const predicted = Number(data.prediction);
+    const histClose = data.history.close.map(Number);
+    const histDates = data.history.dates;
+
+    lastPredictedValue = predicted;
+    lastPredictionHistory = histClose;
+
+    // ------------ Prediction text ---------------
+    el.innerText = `Predicted next price for ${t}: $${predicted.toFixed(2)}`;
+
+    // ------------ FIXED ACCURACY ---------------
+    if (data.accuracy !== undefined) {
+      const acc = Number(data.accuracy).toFixed(2);
+
+      let color = acc >= 90 ? "green" : acc >= 80 ? "orange" : "red";
+
+      accuracyEl.innerHTML =
+        `Model Accuracy: <span style="color:${color}; font-weight:bold;">${acc}%</span>`;
+    } else {
+      accuracyEl.innerText = "";
+    }
+
+    // ------------ PROFIT / LOSS ---------------
+    const lastPrice = histClose[histClose.length - 1];
+    const diff = predicted - lastPrice;
+    const percent = ((diff / lastPrice) * 100).toFixed(2);
+
+    if (diff > 0) 
+      plEl.innerHTML = `<span style="color:green;">📈 Profit: +${diff.toFixed(2)} USD (+${percent}%)</span>`;
+    else if (diff < 0)
+      plEl.innerHTML = `<span style="color:red;">📉 Loss: ${diff.toFixed(2)} USD (${percent}%)</span>`;
+    else
+      plEl.innerHTML = `<span style="color:gray;">No change predicted</span>`;
+
+    // ------------ NEXT DATE ---------------
+    const lastDate = new Date(histDates[histDates.length - 1]);
+    const nextDate = new Date(lastDate);
+    nextDate.setDate(lastDate.getDate() + 1);
+    const nextDateStr = nextDate.toISOString().split("T")[0];
+
+    // ------------ Plot prediction chart ---------------
+    Plotly.newPlot('predictionChart', [
+      {
+        x: histDates,
+        y: histClose,
+        type: 'scatter',
+        mode: 'lines',
+        name: `${t} History`,
+        line: { color: '#007bff' }
+      },
+      {
+        x: [histDates[histDates.length - 1], nextDateStr],
+        y: [lastPrice, predicted],
+        type: 'scatter',
+        mode: 'lines+markers+text',
+        name: 'Prediction',
+        line: { dash: 'dot', color: diff >= 0 ? 'green' : 'red' },
+        marker: { size: 10, color: diff >= 0 ? 'green' : 'red' },
+        text: ["", `$${predicted.toFixed(2)}`],
+        textposition: 'top center'
+      }
+    ], {
+      title: `${t} Prediction`,
+      margin: { t: 40 }
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert("Prediction failed.");
+  }
+}
+
+
+
 
 
 async function sendMessage() {
