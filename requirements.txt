@@ -12,3 +12,4 @@ redis==5.0.7
 django-redis==5.4.0
 gunicorn
 matplotlib
+tensorflow
